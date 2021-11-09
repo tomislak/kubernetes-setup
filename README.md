@@ -1,1 +1,1 @@
-# flask-kubernetes
+# kubernetes-setup
