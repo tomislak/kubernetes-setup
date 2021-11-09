@@ -1,0 +1,190 @@
+Docker
+======
+curl https://releases.rancher.com/install-docker/20.10.sh | sh
+
+Ceph repository
+===============
+wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
+sudo apt-add-repository 'deb https://download.ceph.com/debian-octopus/ focal main'
+
+cepadmin
+========
+curl --silent --remote-name --location https://github.com/ceph/ceph/raw/octopus/src/cephadm/cephadm
+chmod +x cephadm
+
+bootstraping first node
+=======================
+user@host00053:~/ceph$ sudo ./cephadm  bootstrap --mon-ip 1.2.3.145
+[sudo] password for user:
+Creating directory /etc/ceph for ceph.conf
+Verifying podman|docker is present...
+Verifying lvm2 is present...
+Verifying time synchronization is in place...
+Unit ntp.service is enabled and running
+Repeating the final host check...
+podman|docker (/usr/bin/docker) is present
+systemctl is present
+lvcreate is present
+Unit ntp.service is enabled and running
+Host looks OK
+Cluster fsid: 7b7968e0-4075-11ec-9f41-0b0e43a2c344
+Verifying IP 1.2.3.145 port 3300 ...
+Verifying IP 1.2.3.145 port 6789 ...
+Mon IP 1.2.3.145 is in CIDR network 1.2.3.128/27
+Pulling container image quay.io/ceph/ceph:v15...
+Extracting ceph user uid/gid from container image...
+Creating initial keys...
+Creating initial monmap...
+Creating mon...
+Waiting for mon to start...
+Waiting for mon...
+mon is available
+Assimilating anything we can from ceph.conf...
+Generating new minimal ceph.conf...
+Restarting the monitor...
+Setting mon public_network...
+Creating mgr...
+Verifying port 9283 ...
+Wrote keyring to /etc/ceph/ceph.client.admin.keyring
+Wrote config to /etc/ceph/ceph.conf
+Waiting for mgr to start...
+Waiting for mgr...
+mgr not available, waiting (1/10)...
+mgr not available, waiting (2/10)...
+mgr not available, waiting (3/10)...
+mgr not available, waiting (4/10)...
+mgr not available, waiting (5/10)...
+mgr is available
+Enabling cephadm module...
+Waiting for the mgr to restart...
+Waiting for Mgr epoch 5...
+Mgr epoch 5 is available
+Setting orchestrator backend to cephadm...
+Generating ssh key...
+Wrote public SSH key to to /etc/ceph/ceph.pub
+Adding key to root@localhost's authorized_keys...
+Adding host host00053...
+Deploying mon service with default placement...
+Deploying mgr service with default placement...
+Deploying crash service with default placement...
+Enabling mgr prometheus module...
+Deploying prometheus service with default placement...
+Deploying grafana service with default placement...
+Deploying node-exporter service with default placement...
+Deploying alertmanager service with default placement...
+Enabling the dashboard module...
+Waiting for the mgr to restart...
+Waiting for Mgr epoch 13...
+Mgr epoch 13 is available
+Generating a dashboard self-signed certificate...
+Creating initial admin user...
+Fetching dashboard port number...
+Ceph Dashboard is now available at:
+
+             URL: https://host00053:8443/
+            User: admin
+        Password: 0n11fmvpqq
+
+You can access the Ceph CLI with:
+
+        sudo ./cephadm shell --fsid 7b7968e0-4075-11ec-9f41-0b0e43a2c344 -c /etc/ceph/ceph.conf -k /etc/ceph/ceph.client.admin.keyring
+
+Please consider enabling telemetry to help improve Ceph:
+
+        ceph telemetry on
+
+For more information see:
+
+        https://docs.ceph.com/docs/master/mgr/telemetry/
+
+Bootstrap complete.
+
+DISK
+====
+add additional disks on each host
+Add ssh key to root's authorized_keys from /etc/ceph/ceph.pub
+
+Adding host to the cluster
+==========================
+user@host00053:~/ceph$ sudo ./cephadm shell --fsid 7b7968e0-4075-11ec-9f41-0b0e43a2c344 -c /etc/ceph/ceph.conf -k /etc/ceph/ceph.client.admin.keyring
+Using recent ceph image quay.io/ceph/ceph@sha256:a2c23b6942f7fbc1e15d8cfacd6655a681fe0e44f288e4a158db22030b8d58e3
+root@host00053:/#
+root@host00053:/# ceph orch host ls
+HOST          ADDR          LABELS  STATUS
+host00053  host00053
+root@host00053:/# ceph orch host add host00014 host00014 --labels _admin
+Added host 'host00014'
+root@host00053:/# ceph orch host ls
+HOST          ADDR          LABELS  STATUS
+host00014  host00014  _admin
+host00053  host00053
+root@host00053:/# ceph orch host add host00053 host00053 --labels _admin
+Added host 'host00053'
+root@host00053:/# ceph orch host ls
+HOST          ADDR          LABELS  STATUS
+host00014  host00014  _admin
+host00053  host00053  _admin
+root@host00053:/# ceph orch device ls
+Hostname      Path      Type  Serial  Size   Health   Ident  Fault  Available
+host00014  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+host00053  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+root@host00053:/# ceph orch host add host00013 host00013 --labels _admin
+Added host 'host00013'
+root@host00053:/# ceph orch host ls
+HOST          ADDR          LABELS  STATUS
+host00013  host00013  _admin
+host00014  host00014  _admin
+host00053  host00053  _admin
+root@host00053:/# ceph orch device ls
+Hostname      Path      Type  Serial  Size   Health   Ident  Fault  Available
+host00013  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+host00014  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+host00053  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+root@host00053:/# ceph status
+  cluster:
+    id:     7b7968e0-4075-11ec-9f41-0b0e43a2c344
+    health: HEALTH_WARN
+            OSD count 0 < osd_pool_default_size 3
+
+  services:
+    mon: 3 daemons, quorum host00053,host00014,host00013 (age 3m)
+    mgr: host00053.ktqbju(active, since 30m), standbys: host00014.aacvbn
+    osd: 0 osds: 0 up, 0 in
+
+  data:
+    pools:   0 pools, 0 pgs
+    objects: 0 objects, 0 B
+    usage:   0 B used, 0 B / 0 B avail
+    pgs:
+
+root@host00053:/# ceph orch apply osd --all-available-devices
+Scheduled osd.all-available-devices update...
+root@host00053:/# ceph orch device ls
+Hostname      Path      Type  Serial  Size   Health   Ident  Fault  Available
+host00013  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+host00014  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+host00053  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    Yes
+root@host00053:/# ceph orch device ls
+Hostname      Path      Type  Serial  Size   Health   Ident  Fault  Available
+host00013  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    No
+host00014  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    No
+host00053  /dev/sdb  ssd           21.4G  Unknown  N/A    N/A    No
+root@host00053:/# ceph status
+  cluster:
+    id:     7b7968e0-4075-11ec-9f41-0b0e43a2c344
+    health: HEALTH_OK
+
+  services:
+    mon: 3 daemons, quorum host00053,host00014,host00013 (age 20m)
+    mgr: host00053.ktqbju(active, since 47m), standbys: host00014.aacvbn
+    osd: 3 osds: 3 up (since 107s), 3 in (since 107s)
+
+  data:
+    pools:   1 pools, 1 pgs
+    objects: 0 objects, 0 B
+    usage:   3.0 GiB used, 57 GiB / 60 GiB avail
+    pgs:     1 active+clean
+
+Integrate Ceph and kubernetes
+=============================
+https://www.velotio.com/engineering-blog/kubernetes-storage-using-ceph
